@@ -42,9 +42,9 @@ of future `(x, y)` trajectory points.
 
 ## Run Baseline
 
-```bash
-cd /Users/admin/V2X_Project2/Scenario4
-./run_scenario4_collision.sh
+```powershell
+cd D:\Rana\cycleshield\Scenario8
+bash .\run_scenario4_collision.sh
 ```
 
 This warning-only run publishes MQTT alerts but does not slow or stop vehicles.
@@ -52,15 +52,15 @@ The expected result is one collision between the two vehicles.
 
 Original-style alias:
 
-```bash
-./run_collision_test.sh
+```powershell
+bash .\run_collision_test.sh
 ```
 
 ## Run Protected
 
-```bash
-cd /Users/admin/V2X_Project2/Scenario4
-./run_scenario4_protected_mqtt.sh
+```powershell
+cd D:\Rana\cycleshield\Scenario8
+bash .\run_scenario4_protected_mqtt.sh
 ```
 
 The protected run uses the same LSTM prediction and HIGH/LOW arrival-risk logic.
@@ -82,8 +82,8 @@ data/scenario4_collision_diagnosis_log.csv
 
 Original-style alias:
 
-```bash
-./run_protect_collision.sh
+```powershell
+bash .\run_protect_collision.sh
 ```
 
 ## Validation Result
