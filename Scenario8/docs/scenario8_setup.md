@@ -1,105 +1,367 @@
-# Scenario8 Setup
+# Scenario8 Thesis Demo Setup
 
-Scenario8 is a 50-vehicle MQTT subscriber-controlled protection experiment.
+Scenario8 is the professor-facing Task 5 demo for the V2X project. It runs a
+SUMO traffic simulation, reads live vehicle states through TraCI, uses the
+trained LSTM trajectory model to predict future vehicle positions, estimates
+arrival-time collision risk, and publishes LOW/HIGH alert notifications through
+MQTT.
 
-It copies the Scenario4 road, MQTT scripts, and Scenario3/Scenario4 model
-artifacts into a new folder, then creates a 50-vehicle collision-risk route set
-on the copied road network.
+The recommended demo mode is:
 
 ```text
-MQTT alert engine -> MQTT broker -> MQTT subscriber-controller -> TraCI vehicle control
+Scenario = realtime
+ControlMode = visual
+VehicleCount = configurable
 ```
 
-## Main idea
+This mode is designed to look realistic in SUMO-GUI: vehicles enter the map,
+move through the intersection, leave the network, and alert notifications appear
+when the model detects risk. Vehicles are not forcibly stopped in this mode.
 
-In previous protected scripts, the same protected engine both generated the
-HIGH alert and controlled SUMO vehicles.
+## Short Explanation
 
-In Scenario8, the alert engine remains warning/publisher-side logic. A separate
-MQTT subscriber receives HIGH alerts and then controls the vehicle through TraCI.
-This is closer to a real V2X deployment where a vehicle or roadside controller
-subscribes to alerts and applies braking or speed control.
+The simulation has three parts:
 
-## Files
+1. The MQTT alert engine starts SUMO and receives live vehicle positions from
+   TraCI.
+2. The engine loads the trained LSTM model from `models/`, predicts future
+   trajectories, detects LOW/HIGH arrival-time risks, and publishes alerts to
+   the MQTT broker.
+3. The subscriber-controller receives MQTT alerts and shows temporary LOW/HIGH
+   labels in SUMO-GUI near the affected vehicles.
 
-- `scripts/mqtt_alert_engine_multiclient.py`
-- `scripts/mqtt_alert_subscriber_traci_controller.py`
-- `run_scenario8_mqtt_subscriber_control.sh`
-- `run_scenario8_warning_only.sh`
-- `data/scenario8_subscriber_controller_received_alert_log.csv`
-- `data/scenario8_subscriber_controller_protection_log.csv`
+The data flow is:
 
-## How it works
+```text
+SUMO live vehicle states
+  -> trained LSTM trajectory model
+  -> risk detection
+  -> MQTT broker
+  -> subscriber-controller
+  -> SUMO-GUI alert labels + CSV logs
+```
 
-1. `mqtt_alert_engine_multiclient.py` starts SUMO in TraCI multi-client mode.
-2. The engine loads the unchanged LSTM model and publishes MQTT alerts.
-3. `mqtt_alert_subscriber_traci_controller.py` subscribes to `v2x/alerts`.
-4. When it receives a HIGH alert, it queues the conflicting vehicles.
-5. The subscriber-controller shows a `LOW ALERT` or `HIGH ALERT` label beside
-   the affected vehicles in SUMO-GUI, like a driver warning display.
-6. The subscriber-controller uses TraCI to slow/yield non-priority vehicles.
-7. When the conflict zone clears, it releases one vehicle with normal SUMO speed.
+## Are We Using the Trained Model?
 
-## Vehicle Scenario
+Yes. The realtime simulation still uses the trained trajectory prediction model.
 
-- Exactly 50 vehicles are generated in `scenario8_50.routes.xml`.
-- Vehicle IDs run from `targeted_vehicle_001` to `targeted_vehicle_050`.
-- The active SUMO config is `osm.sumocfg`.
-- Simulation time is `0` to `220` seconds with `step-length = 0.1`.
-- Vehicles are generated with a fixed random seed in
-  `scripts/create_scenario8_routes.py`.
-- The route file mixes 20 random background vehicles with 15 randomized
-  Scenario4-style two-vehicle conflict pairs at
-  `cluster_255722000_4115305935`.
-- The conflict pairs are inserted at jittered times so traffic does not appear
-  as simple route blocks.
-- Conflict group metadata is written to
-  `data/scenario8_conflict_groups.csv`.
+The engine loads these artifacts at startup:
 
-The warning-only run shows the collision-risk baseline. The protected run keeps
-the same traffic but moves vehicle control into the MQTT subscriber-controller.
+```text
+models/best_trajectory_model.keras
+models/feature_scaler.joblib
+models/target_scaler.joblib
+models/task5_model_metadata.json
+```
 
-Latest headless validation:
+The model is loaded inside:
 
-- Warning-only baseline: 50 inserted, 0 teleports, 15 collisions.
-- Protected subscriber-control run: 50 inserted, 0 teleports, 4 collisions,
-  29 MQTT alerts published, 39 protection actions.
+```text
+scripts/mqtt_alert_engine_multiclient.py
+scripts/v2x_task5_common.py
+```
 
-In GUI mode, received alerts are displayed as temporary labels beside the
-affected vehicles only:
+The route generator only creates SUMO traffic. It does not replace the model.
+The live engine still performs model inference on SUMO vehicle states before
+publishing MQTT alerts.
 
-- `HIGH ALERT`
-- `LOW ALERT`
+## Important Modes
 
-No extra status text is shown on the map. The terminal output remains verbose
-for debugging, including subscriber status, detailed HIGH-alert lines,
-protection counts, and release counts. Detailed alert, latency, and protection
-information is also saved in the CSV logs.
+Use `visual` mode for the thesis/professor demo.
 
-## Run
+```text
+visual mode:
+- cars keep moving naturally;
+- LOW/HIGH alert labels appear in SUMO-GUI;
+- MQTT alerts are printed in the terminal;
+- CSV alert logs are written;
+- no stop/release collision-control gate is applied.
+```
 
-Start the MQTT broker first if it is not already running:
+Use `protect` mode only for the stricter collision-avoidance experiment.
+
+```text
+protect mode:
+- HIGH alerts can trigger TraCI speed control;
+- vehicles may queue near the intersection;
+- useful for showing collision-avoidance logic;
+- less realistic visually because cars may be intentionally held.
+```
+
+## Main Files
+
+```text
+run_scenario8_mqtt_subscriber_control.ps1   Windows launcher
+run_scenario8_mqtt_subscriber_control.sh    macOS/Linux launcher
+scripts/create_scenario8_routes.py          route generator
+scripts/mqtt_alert_engine_multiclient.py     realtime model + MQTT alert engine
+scripts/mqtt_alert_subscriber_traci_controller.py MQTT subscriber + GUI labels
+osm_realtime.sumocfg                         realtime SUMO config
+scenario8_realtime.routes.xml                regenerated realtime route file
+docker-compose.mqtt.yml                      Mosquitto MQTT broker
+```
+
+## Setup Requirements
+
+Install or verify:
+
+```text
+Python 3.10+
+SUMO with sumo and sumo-gui available in PATH
+Docker Desktop or another way to run Mosquitto
+Python packages from requirements-task5.txt
+```
+
+First-time setup notes:
+
+```text
+Windows:
+- Install SUMO and make sure sumo.exe and sumo-gui.exe are available in PATH.
+- Install Docker Desktop if you want to run Mosquitto with docker compose.
+- Install Python dependencies with python -m pip install -r requirements-task5.txt.
+
+macOS:
+- Install SUMO so the commands sumo and sumo-gui work from Terminal.
+- Install Docker Desktop or another MQTT broker setup.
+- Install Python dependencies with python3 -m pip install -r requirements-task5.txt.
+```
+
+The Python requirements include:
+
+```text
+tensorflow  = loads the trained LSTM model
+traci       = reads live SUMO vehicle states
+paho-mqtt   = publishes/subscribes to MQTT alerts
+scikit-learn/joblib = loads the saved feature and target scalers
+```
+
+Start from the Scenario8 folder:
+
+```powershell
+cd D:\Rana\cycleshield\Scenario8
+```
+
+On macOS/Linux:
+
+```bash
+cd /path/to/Scenario8
+```
+
+Install Python dependencies:
+
+```powershell
+python -m pip install -r requirements-task5.txt
+```
+
+On macOS/Linux:
+
+```bash
+python3 -m pip install -r requirements-task5.txt
+```
+
+Start the MQTT broker:
+
+```powershell
+docker compose -f docker-compose.mqtt.yml up -d
+```
+
+Check SUMO:
+
+```powershell
+sumo --version
+sumo-gui --version
+```
+
+## Simple Run
+
+For the normal thesis demo, use only these commands.
+
+Windows:
 
 ```powershell
 cd D:\Rana\cycleshield\Scenario8
 docker compose -f docker-compose.mqtt.yml up -d
+.\run_scenario8_mqtt_subscriber_control.ps1
 ```
 
-Run the subscriber-controlled protected experiment:
+macOS/Linux:
+
+```bash
+cd /path/to/Scenario8
+docker compose -f docker-compose.mqtt.yml up -d
+chmod +x ./run_scenario8_mqtt_subscriber_control.sh
+./run_scenario8_mqtt_subscriber_control.sh
+```
+
+This default run uses realtime GUI mode, 150 vehicles, the trained LSTM model,
+MQTT alerts, and visual LOW/HIGH alert labels.
+
+## Recommended Professor Demo
+
+Use 150 vehicles for the main presentation:
 
 ```powershell
-cd D:\Rana\cycleshield\Scenario8
-bash .\run_scenario8_mqtt_subscriber_control.sh
+.\run_scenario8_mqtt_subscriber_control.ps1
 ```
 
-Run the warning-only baseline:
+macOS/Linux:
+
+```bash
+chmod +x ./run_scenario8_mqtt_subscriber_control.sh
+./run_scenario8_mqtt_subscriber_control.sh
+```
+
+What the professor should see:
+
+```text
+- SUMO-GUI opens.
+- Vehicles enter and leave the road network continuously.
+- The main terminal prints structured MQTT ALERT lines from the engine.
+- On Windows, a second subscriber window shows MQTT alerts received by the subscriber-controller.
+- SUMO-GUI shows temporary LOW ALERT or HIGH ALERT labels near affected cars.
+- The simulation runs at realtime speed instead of racing ahead.
+```
+
+Example terminal alert:
+
+```text
+MQTT ALERT | HIGH | NEW_HIGH | sim=43.1s | pair=targeted_vehicle_009->targeted_vehicle_010 | arrival_diff=1.00s | predicted_time=45.7s | Issue immediate V2X intersection-arrival warning
+```
+
+## Run With Different Vehicle Counts
+
+The realtime launcher regenerates the route automatically for the requested
+vehicle count.
+
+Windows:
 
 ```powershell
-bash .\run_scenario8_warning_only.sh
+.\run_scenario8_mqtt_subscriber_control.ps1 -VehicleCount 50
+.\run_scenario8_mqtt_subscriber_control.ps1 -VehicleCount 100
+.\run_scenario8_mqtt_subscriber_control.ps1 -VehicleCount 150
+.\run_scenario8_mqtt_subscriber_control.ps1 -VehicleCount 250 -Duration 1000
 ```
 
-## Notes
+macOS/Linux:
 
-- Do not run another SUMO/TraCI scenario at the same time on port `8873`.
-- This folder is independent. Scenario3, Scenario4, and other folders are not modified.
-- The model, scalers, metadata, LSTM prediction logic, and risk thresholds are copied unchanged.
+```bash
+./run_scenario8_mqtt_subscriber_control.sh --scenario realtime --vehicle-count 50 --mode gui
+./run_scenario8_mqtt_subscriber_control.sh --scenario realtime --vehicle-count 100 --mode gui
+./run_scenario8_mqtt_subscriber_control.sh --scenario realtime --vehicle-count 150 --mode gui
+./run_scenario8_mqtt_subscriber_control.sh --scenario realtime --vehicle-count 250 --duration 1000 --mode gui
+```
+
+Suggested demo levels:
+
+```text
+50 vehicles  = light traffic
+100 vehicles = medium traffic
+150 vehicles = recommended professor demo
+250 vehicles = heavier traffic demo, use Duration 1000
+```
+
+The generator uses seed `8408` by default, so the traffic pattern is
+repeatable. Use `-Seed` / `--seed` only if you want a different traffic pattern.
+
+## Fast Test Without GUI
+
+Use this for quick validation before opening SUMO-GUI.
+
+Windows:
+
+```powershell
+.\run_scenario8_mqtt_subscriber_control.ps1 -Scenario realtime -VehicleCount 150 -Mode headless -Fast
+```
+
+macOS/Linux:
+
+```bash
+./run_scenario8_mqtt_subscriber_control.sh --scenario realtime --vehicle-count 150 --mode headless --fast
+```
+
+## Protection Experiment
+
+This is not the recommended professor visual demo. Use it only if you need to
+show the strict stop/release collision-avoidance controller.
+
+Windows:
+
+```powershell
+.\run_scenario8_mqtt_subscriber_control.ps1 -Scenario 150 -Mode gui -ControlMode protect
+```
+
+macOS/Linux:
+
+```bash
+./run_scenario8_mqtt_subscriber_control.sh --scenario 150 --mode gui --control-mode protect
+```
+
+In protection mode, cars may stop and queue because the controller allows one
+priority vehicle through the conflict zone at a time.
+
+## Logs
+
+The main logs are replaced each session.
+
+```text
+data/mqtt_sent_alert_log.csv
+data/scenario8_subscriber_controller_received_alert_log.csv
+data/scenario8_subscriber_controller_protection_log.csv
+data/scenario8_realtime_conflict_groups.csv
+```
+
+`mqtt_sent_alert_log.csv` contains alerts published by the engine.
+
+`scenario8_subscriber_controller_received_alert_log.csv` contains alerts
+received by the MQTT subscriber-controller, including latency.
+
+`scenario8_subscriber_controller_protection_log.csv` is mainly useful for
+`protect` mode. In `visual` mode, protection counts should stay at zero.
+
+## Troubleshooting
+
+If PowerShell blocks the script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_scenario8_mqtt_subscriber_control.ps1
+```
+
+If SUMO-GUI opens but time runs too fast, make sure you are not using `-Fast`
+or `--fast`. GUI demo mode should use realtime pacing.
+
+If you see only one or two vehicles at the beginning, that is normal. Vehicles
+appear according to their generated departure times. More vehicles enter as the
+simulation time advances.
+
+If the TraCI port is busy, close old SUMO/Python runs or choose another port:
+
+```powershell
+.\run_scenario8_mqtt_subscriber_control.ps1 -TraciPort 8874
+```
+
+macOS/Linux:
+
+```bash
+./run_scenario8_mqtt_subscriber_control.sh --scenario realtime --vehicle-count 150 --mode gui --traci-port 8874
+```
+
+If MQTT alerts do not appear, confirm the broker is running:
+
+```powershell
+docker compose -f docker-compose.mqtt.yml ps
+```
+
+Then restart it if needed:
+
+```powershell
+docker compose -f docker-compose.mqtt.yml up -d
+```
+
+## What to Tell the Professor
+
+This demo shows a V2X warning pipeline. SUMO provides live vehicle movement,
+the trained LSTM model predicts future trajectories, the engine estimates
+time/arrival risk, and MQTT delivers warning messages to a subscriber that
+shows LOW/HIGH alerts in the simulation. The realtime visual mode is intended
+for understandable demonstration. The protection mode is a separate technical
+experiment for stop/release collision avoidance.

@@ -2,6 +2,11 @@
 
 Scenario4 is a small two-vehicle MQTT collision/protection experiment.
 
+For the thesis/professor demonstration, use `docs/scenario8_setup.md` instead.
+Scenario4 is kept as a compact technical validation case; Scenario8 is the
+realistic realtime SUMO-GUI demo with configurable vehicle counts and MQTT
+alert notifications.
+
 The active target intersection is:
 
 ```text

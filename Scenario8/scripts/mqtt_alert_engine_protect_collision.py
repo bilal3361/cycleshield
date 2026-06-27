@@ -31,6 +31,7 @@ SPEED_COMMAND_REFRESH_S = 0.2
 SAFE_TIME_GAP_S = 2.0
 
 APPROACH_ZONE_RADIUS_M = 150.0
+RESERVATION_ENTRY_DISTANCE_M = 45.0
 STOP_ZONE_RADIUS_M = 18.0
 CONFLICT_ZONE_RADIUS_M = 20.0
 CLEAR_ZONE_RADIUS_M = 25.0
@@ -302,6 +303,28 @@ def update_vehicle_progress_state(state: dict[str, Any], distance_m: float | Non
         state["entered_clear_zone"] = True
 
 
+def priority_vehicle_has_safely_cleared(
+    traci: Any,
+    vehicle_id: str,
+    active_vehicle_ids: set[str],
+    progress_state: dict[str, Any],
+    junction_x: float,
+    junction_y: float,
+) -> bool:
+    if vehicle_id not in active_vehicle_ids:
+        return True
+
+    distance_m = get_distance_to_junction(traci, vehicle_id, junction_x, junction_y)
+    if distance_m is None:
+        return True
+
+    return (
+        bool(progress_state.get("entered_conflict_zone"))
+        and not is_vehicle_inside_conflict_zone(traci, vehicle_id, junction_x, junction_y)
+        and float(distance_m) > CLEAR_ZONE_RADIUS_M
+    )
+
+
 def vehicle_is_before_or_inside_target_junction(traci: Any, vehicle_id: str) -> bool:
     return is_on_target_internal_lane(traci, vehicle_id) or distance_to_junction_entry(traci, vehicle_id) is not None
 
@@ -555,6 +578,27 @@ def estimate_live_arrival_time(vehicle_id: str, current_states: dict[str, dict[s
     return float(sim_time) + (distance_m / speed_mps)
 
 
+def candidate_leader_id(traci: Any, vehicle_id: str, candidate_vehicle_ids: set[str], lookahead_m: float = 80.0) -> str:
+    try:
+        leader = traci.vehicle.getLeader(vehicle_id, float(lookahead_m))
+    except Exception:
+        leader = None
+    if not leader:
+        return ""
+    leader_id = str(leader[0])
+    return leader_id if leader_id in candidate_vehicle_ids else ""
+
+
+def front_of_queue_candidates(traci: Any, sorted_candidates: list[str]) -> list[str]:
+    candidate_set = set(sorted_candidates)
+    front_candidates = [
+        vehicle_id
+        for vehicle_id in sorted_candidates
+        if not candidate_leader_id(traci, vehicle_id, candidate_set)
+    ]
+    return front_candidates or sorted_candidates
+
+
 def ensure_gate_state(gate_state: dict[str, Any], vehicle_id: str, sim_time: float) -> dict[str, Any]:
     controlled: dict[str, dict[str, Any]] = gate_state.setdefault("controlled", {})
     return controlled.setdefault(
@@ -720,7 +764,27 @@ def maintain_intersection_gate_controls(
             distance_m = float(state.get("distance_to_junction_center_m", 999999.0))
         except (TypeError, ValueError):
             continue
-        if distance_m > APPROACH_ZONE_RADIUS_M and vehicle_id not in zone_vehicle_ids:
+        entry_distance_m = distance_to_junction_entry(traci, vehicle_id)
+        is_alert_vehicle = vehicle_id in alert_arrivals
+        is_controlled_vehicle = vehicle_id in controlled_vehicle_ids
+        is_zone_vehicle = vehicle_id in zone_vehicle_ids
+        is_near_entry = bool(
+            entry_distance_m is not None
+            and entry_distance_m <= RESERVATION_ENTRY_DISTANCE_M
+        )
+        is_near_center_fallback = bool(
+            entry_distance_m is None
+            and distance_m <= STOP_ZONE_RADIUS_M
+        )
+        if not (
+            is_alert_vehicle
+            or is_controlled_vehicle
+            or is_zone_vehicle
+            or is_near_entry
+            or is_near_center_fallback
+        ):
+            continue
+        if distance_m > APPROACH_ZONE_RADIUS_M and not (is_alert_vehicle or is_controlled_vehicle):
             continue
         candidate_vehicle_ids.append(vehicle_id)
         arrival_times[vehicle_id] = alert_arrivals.get(
@@ -728,11 +792,39 @@ def maintain_intersection_gate_controls(
             estimate_live_arrival_time(vehicle_id, current_states, sim_time),
         )
 
+    candidate_set = set(candidate_vehicle_ids)
+    preferred_priority_vehicle_id = ""
     current_priority_vehicle_id = str(gate_state.get("current_priority_vehicle_id", ""))
     if current_priority_vehicle_id and current_priority_vehicle_id not in active_vehicle_ids:
         current_priority_vehicle_id = ""
         gate_state["current_priority_vehicle_id"] = ""
         gate_state["priority_progress"] = {}
+
+    if current_priority_vehicle_id:
+        blocking_leader_id = candidate_leader_id(traci, current_priority_vehicle_id, candidate_set)
+        if blocking_leader_id:
+            write_protection_log(
+                writer,
+                handle,
+                sim_time,
+                "REASSIGN_BLOCKED_PRIORITY",
+                priority_vehicle_id=blocking_leader_id,
+                yielding_vehicle_id=current_priority_vehicle_id,
+                reservation_queue=candidate_vehicle_ids,
+                conflict_group_vehicle_ids=candidate_vehicle_ids,
+                predicted_arrival_time_s=arrival_times.get(blocking_leader_id),
+                conflict_zone_vehicle_ids=zone_vehicle_ids,
+                release_reason="priority_vehicle_blocked_by_queue_leader",
+                note=(
+                    f"Priority vehicle {current_priority_vehicle_id} is behind "
+                    f"{blocking_leader_id}; front-of-queue vehicle is released first."
+                ),
+                alert=alert_by_vehicle.get(blocking_leader_id),
+            )
+            preferred_priority_vehicle_id = blocking_leader_id
+            current_priority_vehicle_id = ""
+            gate_state["current_priority_vehicle_id"] = ""
+            gate_state["priority_progress"] = {}
 
     if current_priority_vehicle_id:
         priority_distance_m = get_distance_to_junction(traci, current_priority_vehicle_id, junction_x, junction_y)
@@ -747,13 +839,13 @@ def maintain_intersection_gate_controls(
         update_vehicle_progress_state(priority_progress, priority_distance_m)
         gate_state["priority_progress"] = priority_progress
 
-        priority_has_cleared = (
-            priority_distance_m is None
-            or not vehicle_is_before_or_inside_target_junction(traci, current_priority_vehicle_id)
-            or (
-                bool(priority_progress.get("entered_conflict_zone"))
-                and not is_vehicle_inside_conflict_zone(traci, current_priority_vehicle_id, junction_x, junction_y)
-            )
+        priority_has_cleared = priority_vehicle_has_safely_cleared(
+            traci,
+            current_priority_vehicle_id,
+            active_vehicle_ids,
+            priority_progress,
+            junction_x,
+            junction_y,
         )
         if priority_has_cleared:
             release_gate_vehicle(traci, gate_state, current_priority_vehicle_id, sim_time)
@@ -785,10 +877,20 @@ def maintain_intersection_gate_controls(
             vehicle_id,
         ),
     )
+    front_candidates = front_of_queue_candidates(traci, sorted_candidates)
 
-    if not current_priority_vehicle_id:
+    release_gap_elapsed = (
+        float(sim_time) - float(gate_state.get("last_release_time_s", -999999.0))
+    ) >= SAFE_TIME_GAP_S
+    can_assign_next_priority = bool(zone_vehicle_ids) or release_gap_elapsed
+
+    if not current_priority_vehicle_id and can_assign_next_priority:
         if zone_vehicle_ids:
             current_priority_vehicle_id = zone_vehicle_ids[0]
+        elif preferred_priority_vehicle_id and preferred_priority_vehicle_id in sorted_candidates:
+            current_priority_vehicle_id = preferred_priority_vehicle_id
+        elif front_candidates:
+            current_priority_vehicle_id = front_candidates[0]
         elif sorted_candidates:
             current_priority_vehicle_id = sorted_candidates[0]
 
@@ -823,6 +925,13 @@ def maintain_intersection_gate_controls(
     reservation_queue = list(sorted_candidates)
     gate_state["reservation_queue"] = reservation_queue
     gate_state["conflict_zone_vehicle_ids"] = zone_vehicle_ids
+    queue_gate_active = bool(
+        high_alerts
+        or current_priority_vehicle_id
+        or gate_state.get("controlled")
+        or reservation_queue
+        or zone_vehicle_ids
+    )
 
     for vehicle_id in list(gate_state.get("controlled", {})):
         if vehicle_id not in active_vehicle_ids or vehicle_id not in sorted_candidates:
@@ -843,6 +952,8 @@ def maintain_intersection_gate_controls(
             leader = None
 
         if (
+            not queue_gate_active
+            and
             not zone_vehicle_ids
             and vehicle_id not in alert_by_vehicle
             and vehicle_id not in gate_state.get("controlled", {})
@@ -851,6 +962,8 @@ def maintain_intersection_gate_controls(
             continue
 
         if (
+            not queue_gate_active
+            and
             leader
             and vehicle_id not in gate_state.get("controlled", {})
             and vehicle_id not in alert_by_vehicle
@@ -873,7 +986,10 @@ def maintain_intersection_gate_controls(
             note = "Vehicle already crossed into boundary; priority cleared to maintain throughput safely."
         else:
             target_speed_mps, stop_note = apply_gate_wait(traci, gate_state, vehicle_id, sim_time, distance_m)
-            action = "SLOW_NEAR_ENTRY" if target_speed_mps not in (None, 0.0) else "WAIT_AT_STOP_ZONE"
+            if stop_note.startswith("normal_approach"):
+                action = "QUEUE_MONITOR"
+            else:
+                action = "SLOW_NEAR_ENTRY" if target_speed_mps not in (None, 0.0) else "WAIT_AT_STOP_ZONE"
             release_reason = "conflict_zone_occupied" if zone_vehicle_ids else "reserved_priority_approaching"
             note = f"Vehicle held at stop line for target-junction reservation: {stop_note}."
 
@@ -1000,7 +1116,6 @@ def build_sumo_command(args: Any) -> list[str]:
             args.sumo_binary,
             "-c",
             str(args.sumo_config),
-            "--disable-textures",
             "--window-size",
             "1360,820",
             "--window-pos",
@@ -1093,7 +1208,7 @@ def main() -> int:
             raise RuntimeError(f"Junction '{args.junction_id}' was not found in the SUMO network.")
 
         jx, jy = traci.junction.getPosition(args.junction_id)
-        if using_sumo_gui:
+        if using_sumo_gui and args.gui_refresh_steps > 0:
             base_engine.refresh_sumo_gui_view(traci, float(jx), float(jy), args.gui_view_radius_m)
 
         sim_start_time = float(traci.simulation.getTime())
@@ -1116,6 +1231,7 @@ def main() -> int:
                 "vehicle_groups": args.vehicle_groups,
                 "prepare_speed_mps": PREPARE_SPEED_MPS,
                 "wait_speed_mps": WAIT_SPEED_MPS,
+                "reservation_entry_distance_m": RESERVATION_ENTRY_DISTANCE_M,
                 "prepare_to_wait_distance_m": PREPARE_TO_WAIT_DISTANCE_M,
                 "wait_at_entry_distance_m": WAIT_AT_ENTRY_DISTANCE_M,
                 "conflict_entry_guard_distance_m": CONFLICT_ENTRY_GUARD_DISTANCE_M,

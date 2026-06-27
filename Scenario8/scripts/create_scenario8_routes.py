@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import csv
 import random
 import xml.etree.ElementTree as ET
@@ -43,6 +44,30 @@ VTYPE = {
     "jmIgnoreKeepClearTime": "0",
     "jmStoplineGap": "0",
     "collisionMinGapFactor": "0",
+}
+
+SAFE_VTYPE_OVERRIDES = {
+    "minGap": "2.50",
+    "maxSpeed": "11.11",
+    "speedFactor": "1.0",
+    "speedDev": "0.05",
+    "accel": "3.0",
+    "decel": "4.5",
+    "emergencyDecel": "9.0",
+    "apparentDecel": "4.5",
+    "tau": "1.0",
+    "sigma": "0.2",
+    "lcStrategic": "1",
+    "lcCooperative": "1",
+    "lcSpeedGain": "1",
+    "lcKeepRight": "1",
+    "lcAssertive": "1",
+    "jmIgnoreFoeProb": "0",
+    "jmIgnoreJunctionFoeProb": "0",
+    "jmIgnoreFoeSpeed": "0",
+    "jmIgnoreKeepClearTime": "0",
+    "jmStoplineGap": "2.5",
+    "collisionMinGapFactor": "1",
 }
 
 MOVEMENTS = {
@@ -132,12 +157,26 @@ def is_depart_slot_available(
     return True
 
 
-def make_random_conflict_times(rng: random.Random) -> list[float]:
+def make_random_conflict_times(
+    rng: random.Random,
+    conflict_group_count: int = CONFLICT_GROUP_COUNT,
+    end_time_s: float | None = None,
+) -> list[float]:
     start_s = rng.uniform(42.0, 48.0)
-    gap_s = 14.0
+    if end_time_s is not None:
+        end_s = max(start_s + 20.0, float(end_time_s) - 45.0)
+        gap_s = max(4.0, (end_s - start_s) / max(conflict_group_count - 1, 1))
+        jitter_s = min(1.5, gap_s * 0.25)
+    elif conflict_group_count <= CONFLICT_GROUP_COUNT:
+        gap_s = 14.0
+        jitter_s = 1.5
+    else:
+        end_s = 270.0
+        gap_s = max(2.5, (end_s - start_s) / max(conflict_group_count - 1, 1))
+        jitter_s = min(1.2, gap_s * 0.25)
     times = [
-        round(start_s + index * gap_s + rng.uniform(-1.5, 1.5), 1)
-        for index in range(CONFLICT_GROUP_COUNT)
+        round(start_s + index * gap_s + rng.uniform(-jitter_s, jitter_s), 1)
+        for index in range(conflict_group_count)
     ]
     return sorted(times)
 
@@ -167,10 +206,16 @@ def make_background_arrival_times(
     rng: random.Random,
     conflict_times: list[float],
     count: int,
+    dense: bool = False,
+    end_time_s: float | None = None,
 ) -> list[float]:
+    end_s = float(end_time_s) if end_time_s is not None else 300.0
+    if dense:
+        return sorted(round(rng.uniform(12.0, max(13.0, end_s - 8.0)), 1) for _ in range(count))
+
     candidates = [
         float(slot)
-        for slot in range(12, 286, 5)
+        for slot in range(12, max(13, int(end_s) - 14), 3)
         if all(abs(float(slot) - conflict_time) > 4.0 for conflict_time in conflict_times)
     ]
     if len(candidates) < count:
@@ -179,14 +224,23 @@ def make_background_arrival_times(
     return [round(value + rng.uniform(-0.8, 0.8), 1) for value in selected]
 
 
-def build_vehicles() -> list[dict[str, object]]:
-    rng = random.Random(RANDOM_SEED)
+def build_vehicles(
+    vehicle_count: int = VEHICLE_COUNT,
+    conflict_group_count: int = CONFLICT_GROUP_COUNT,
+    random_seed: int = RANDOM_SEED,
+    dense: bool = False,
+    end_time_s: float | None = None,
+) -> list[dict[str, object]]:
+    if vehicle_count < conflict_group_count * 2:
+        raise ValueError("vehicle_count must be at least twice conflict_group_count.")
+
+    rng = random.Random(random_seed)
     vehicles: list[dict[str, object]] = []
 
     # Random-looking conflict pairs: the pair timing repeats the proven
     # Scenario4 collision pattern, but the pair times are jittered across the
     # full run.
-    conflict_times = make_random_conflict_times(rng)
+    conflict_times = make_random_conflict_times(rng, conflict_group_count, end_time_s=end_time_s)
     for group_index, conflict_time in enumerate(conflict_times, start=1):
         group_id = f"scenario4_style_pair_{group_index:02d}"
         for movement_name in ["east_to_west", "south_to_north"]:
@@ -200,8 +254,14 @@ def build_vehicles() -> list[dict[str, object]]:
             )
 
     background_movements = list(MOVEMENTS)
-    background_count = VEHICLE_COUNT - len(vehicles)
-    for arrival_time in make_background_arrival_times(rng, conflict_times, background_count):
+    background_count = vehicle_count - len(vehicles)
+    for arrival_time in make_background_arrival_times(
+        rng,
+        conflict_times,
+        background_count,
+        dense=dense,
+        end_time_s=end_time_s,
+    ):
         movement_name = rng.choice(background_movements)
         for _attempt in range(20):
             movement = MOVEMENTS[movement_name]
@@ -228,8 +288,8 @@ def build_vehicles() -> list[dict[str, object]]:
             }
         )
 
-    if len(vehicles) != VEHICLE_COUNT:
-        raise RuntimeError(f"Expected {VEHICLE_COUNT} vehicles, generated {len(vehicles)}")
+    if len(vehicles) != vehicle_count:
+        raise RuntimeError(f"Expected {vehicle_count} vehicles, generated {len(vehicles)}")
 
     vehicles = sorted(vehicles, key=lambda item: (float(item["depart"]), str(item["movement"])))
     for index, vehicle in enumerate(vehicles, start=1):
@@ -237,7 +297,11 @@ def build_vehicles() -> list[dict[str, object]]:
     return vehicles
 
 
-def write_routes(vehicles: list[dict[str, object]]) -> None:
+def write_routes(
+    vehicles: list[dict[str, object]],
+    route_path: Path = ROUTE_PATH,
+    safe_behavior: bool = False,
+) -> None:
     routes = ET.Element(
         "routes",
         {
@@ -245,23 +309,28 @@ def write_routes(vehicles: list[dict[str, object]]) -> None:
             "xsi:noNamespaceSchemaLocation": "http://sumo.dlr.de/xsd/routes_file.xsd",
         },
     )
-    ET.SubElement(routes, "vType", VTYPE)
+    vtype = dict(VTYPE)
+    if safe_behavior:
+        vtype.update(SAFE_VTYPE_OVERRIDES)
+    ET.SubElement(routes, "vType", vtype)
 
     for vehicle in vehicles:
         vehicle_attrs = {
             key: str(vehicle[key])
             for key in ["id", "type", "depart", "departLane", "departPos", "departSpeed", "color"]
         }
+        if safe_behavior:
+            vehicle_attrs["departSpeed"] = "max"
         vehicle_el = ET.SubElement(routes, "vehicle", vehicle_attrs)
         ET.SubElement(vehicle_el, "route", {"edges": vehicle["edges"]})
 
     tree = ET.ElementTree(routes)
     ET.indent(tree, space="    ")
-    tree.write(ROUTE_PATH, encoding="UTF-8", xml_declaration=True)
+    tree.write(route_path, encoding="UTF-8", xml_declaration=True)
 
 
-def write_conflict_groups(vehicles: list[dict[str, object]]) -> None:
-    CONFLICT_GROUP_PATH.parent.mkdir(parents=True, exist_ok=True)
+def write_conflict_groups(vehicles: list[dict[str, object]], conflict_group_path: Path = CONFLICT_GROUP_PATH) -> None:
+    conflict_group_path.parent.mkdir(parents=True, exist_ok=True)
     fields = [
         "group_id",
         "vehicle_id",
@@ -273,7 +342,7 @@ def write_conflict_groups(vehicles: list[dict[str, object]]) -> None:
         "purpose",
         "note",
     ]
-    with CONFLICT_GROUP_PATH.open("w", newline="", encoding="utf-8") as handle:
+    with conflict_group_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         for vehicle in vehicles:
@@ -296,16 +365,80 @@ def write_conflict_groups(vehicles: list[dict[str, object]]) -> None:
             )
 
 
-def main() -> int:
-    vehicles = build_vehicles()
-    write_routes(vehicles)
-    write_conflict_groups(vehicles)
+def project_path(value: str | None, default: Path) -> Path:
+    if not value:
+        return default
+    path = Path(value)
+    return path if path.is_absolute() else PROJECT_ROOT / path
 
-    print(f"Wrote {ROUTE_PATH}")
-    print(f"Wrote {CONFLICT_GROUP_PATH}")
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Create Scenario8 SUMO route files.")
+    parser.add_argument("--vehicle-count", type=int, default=VEHICLE_COUNT)
+    parser.add_argument("--conflict-groups", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=RANDOM_SEED)
+    parser.add_argument(
+        "--end-time",
+        type=float,
+        default=None,
+        help="Spread generated arrivals across this many simulation seconds.",
+    )
+    parser.add_argument(
+        "--safe-behavior",
+        action="store_true",
+        help="Write SUMO vehicle type settings suitable for natural traffic flow instead of deliberate collision stress.",
+    )
+    parser.add_argument(
+        "--dense",
+        action="store_true",
+        help="Allow tighter background traffic timing for stress tests.",
+    )
+    parser.add_argument("--output-route", default=None)
+    parser.add_argument("--output-conflict-groups", default=None)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    conflict_group_count = (
+        args.conflict_groups
+        if args.conflict_groups is not None
+        else (
+            max(4, min(30, args.vehicle_count // 6))
+            if args.safe_behavior
+            else CONFLICT_GROUP_COUNT
+            if args.vehicle_count == VEHICLE_COUNT
+            else max(CONFLICT_GROUP_COUNT, min(args.vehicle_count // 3, args.vehicle_count // 2))
+        )
+    )
+    default_route = ROUTE_PATH if args.vehicle_count == VEHICLE_COUNT else PROJECT_ROOT / f"scenario8_{args.vehicle_count}.routes.xml"
+    default_groups = (
+        CONFLICT_GROUP_PATH
+        if args.vehicle_count == VEHICLE_COUNT
+        else PROJECT_ROOT / "data" / f"scenario8_{args.vehicle_count}_conflict_groups.csv"
+    )
+    route_path = project_path(args.output_route, default_route)
+    conflict_group_path = project_path(args.output_conflict_groups, default_groups)
+
+    vehicles = build_vehicles(
+        vehicle_count=args.vehicle_count,
+        conflict_group_count=conflict_group_count,
+        random_seed=args.seed,
+        dense=args.dense,
+        end_time_s=args.end_time,
+    )
+    write_routes(vehicles, route_path, safe_behavior=args.safe_behavior)
+    write_conflict_groups(vehicles, conflict_group_path)
+
+    print(f"Wrote {route_path}")
+    print(f"Wrote {conflict_group_path}")
     print(f"vehicle_count={len(vehicles)}")
-    print(f"random_seed={RANDOM_SEED}")
-    print("vehicle_ids=targeted_vehicle_001..targeted_vehicle_050")
+    print(f"conflict_groups={conflict_group_count}")
+    print(f"random_seed={args.seed}")
+    print(f"dense={bool(args.dense)}")
+    print(f"safe_behavior={bool(args.safe_behavior)}")
+    print(f"end_time={args.end_time if args.end_time is not None else ''}")
+    print(f"vehicle_ids=targeted_vehicle_001..targeted_vehicle_{len(vehicles):03d}")
     print("movement_distribution:")
     for movement_name in MOVEMENTS:
         count = sum(1 for vehicle in vehicles if vehicle["movement"] == movement_name)

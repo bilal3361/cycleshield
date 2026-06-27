@@ -1,0 +1,454 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vType id="scenario8_collision_car" vClass="passenger" guiShape="passenger" length="5.00" width="1.80" minGap="0" maxSpeed="13.89" speedFactor="1.0" speedDev="0" accel="6.0" decel="9.0" emergencyDecel="12.0" apparentDecel="12.0" tau="0.1" sigma="0" lcStrategic="0" lcCooperative="0" lcSpeedGain="0" lcKeepRight="0" lcAssertive="10" jmIgnoreFoeProb="1" jmIgnoreJunctionFoeProb="1" jmIgnoreFoeSpeed="100" jmIgnoreKeepClearTime="0" jmStoplineGap="0" collisionMinGapFactor="0" />
+    <vehicle id="targeted_vehicle_001" type="scenario8_collision_car" depart="16.5" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_002" type="scenario8_collision_car" depart="35.6" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_003" type="scenario8_collision_car" depart="36.4" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_004" type="scenario8_collision_car" depart="37.1" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_005" type="scenario8_collision_car" depart="37.9" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_006" type="scenario8_collision_car" depart="38.5" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_007" type="scenario8_collision_car" depart="38.5" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_008" type="scenario8_collision_car" depart="39.0" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_009" type="scenario8_collision_car" depart="40.8" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_010" type="scenario8_collision_car" depart="41.7" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_011" type="scenario8_collision_car" depart="44.5" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_012" type="scenario8_collision_car" depart="46.1" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_013" type="scenario8_collision_car" depart="46.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_014" type="scenario8_collision_car" depart="47.5" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_015" type="scenario8_collision_car" depart="49.7" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_016" type="scenario8_collision_car" depart="50.0" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_017" type="scenario8_collision_car" depart="53.1" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_018" type="scenario8_collision_car" depart="54.1" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_019" type="scenario8_collision_car" depart="56.2" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_020" type="scenario8_collision_car" depart="58.3" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_021" type="scenario8_collision_car" depart="60.5" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_022" type="scenario8_collision_car" depart="63.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_023" type="scenario8_collision_car" depart="65.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_024" type="scenario8_collision_car" depart="67.2" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_025" type="scenario8_collision_car" depart="69.4" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_026" type="scenario8_collision_car" depart="71.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_027" type="scenario8_collision_car" depart="72.8" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_028" type="scenario8_collision_car" depart="73.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_029" type="scenario8_collision_car" depart="74.6" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_030" type="scenario8_collision_car" depart="76.3" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_031" type="scenario8_collision_car" depart="78.5" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_032" type="scenario8_collision_car" depart="78.8" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_033" type="scenario8_collision_car" depart="81.2" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_034" type="scenario8_collision_car" depart="81.9" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_035" type="scenario8_collision_car" depart="84.3" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_036" type="scenario8_collision_car" depart="85.7" departLane="0" departPos="0" departSpeed="13.89" color="cyan">
+        <route edges="1274037341#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_037" type="scenario8_collision_car" depart="86.0" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_038" type="scenario8_collision_car" depart="88.2" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_039" type="scenario8_collision_car" depart="91.3" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_040" type="scenario8_collision_car" depart="93.4" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_041" type="scenario8_collision_car" depart="94.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_042" type="scenario8_collision_car" depart="96.7" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_043" type="scenario8_collision_car" depart="99.5" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_044" type="scenario8_collision_car" depart="99.6" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_045" type="scenario8_collision_car" depart="101.7" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_046" type="scenario8_collision_car" depart="104.3" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_047" type="scenario8_collision_car" depart="104.6" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_048" type="scenario8_collision_car" depart="106.9" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_049" type="scenario8_collision_car" depart="108.7" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_050" type="scenario8_collision_car" depart="110.9" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_051" type="scenario8_collision_car" depart="112.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_052" type="scenario8_collision_car" depart="114.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_053" type="scenario8_collision_car" depart="118.5" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_054" type="scenario8_collision_car" depart="120.7" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_055" type="scenario8_collision_car" depart="122.0" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_056" type="scenario8_collision_car" depart="123.8" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_057" type="scenario8_collision_car" depart="124.4" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_058" type="scenario8_collision_car" depart="124.9" departLane="0" departPos="0" departSpeed="13.89" color="cyan">
+        <route edges="1274037341#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_059" type="scenario8_collision_car" depart="125.0" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_060" type="scenario8_collision_car" depart="125.9" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_061" type="scenario8_collision_car" depart="126.3" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_062" type="scenario8_collision_car" depart="128.4" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_063" type="scenario8_collision_car" depart="131.6" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_064" type="scenario8_collision_car" depart="132.5" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_065" type="scenario8_collision_car" depart="133.7" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_066" type="scenario8_collision_car" depart="135.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_067" type="scenario8_collision_car" depart="136.3" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_068" type="scenario8_collision_car" depart="137.7" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_069" type="scenario8_collision_car" depart="140.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_070" type="scenario8_collision_car" depart="142.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_071" type="scenario8_collision_car" depart="146.8" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_072" type="scenario8_collision_car" depart="149.0" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_073" type="scenario8_collision_car" depart="150.8" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_074" type="scenario8_collision_car" depart="150.9" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_075" type="scenario8_collision_car" depart="153.2" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_076" type="scenario8_collision_car" depart="154.3" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_077" type="scenario8_collision_car" depart="154.7" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_078" type="scenario8_collision_car" depart="156.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_079" type="scenario8_collision_car" depart="159.8" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_080" type="scenario8_collision_car" depart="160.2" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_081" type="scenario8_collision_car" depart="162.1" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_082" type="scenario8_collision_car" depart="164.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_083" type="scenario8_collision_car" depart="166.5" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_084" type="scenario8_collision_car" depart="168.6" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_085" type="scenario8_collision_car" depart="171.0" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_086" type="scenario8_collision_car" depart="171.4" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_087" type="scenario8_collision_car" depart="172.7" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_088" type="scenario8_collision_car" depart="174.9" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_089" type="scenario8_collision_car" depart="178.4" departLane="0" departPos="0" departSpeed="13.89" color="cyan">
+        <route edges="1274037341#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_090" type="scenario8_collision_car" depart="178.7" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_091" type="scenario8_collision_car" depart="180.8" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_092" type="scenario8_collision_car" depart="183.3" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_093" type="scenario8_collision_car" depart="185.4" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_094" type="scenario8_collision_car" depart="185.5" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_095" type="scenario8_collision_car" depart="187.6" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_096" type="scenario8_collision_car" depart="189.8" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_097" type="scenario8_collision_car" depart="189.9" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_098" type="scenario8_collision_car" depart="190.1" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_099" type="scenario8_collision_car" depart="191.4" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_100" type="scenario8_collision_car" depart="193.5" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_101" type="scenario8_collision_car" depart="195.0" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_102" type="scenario8_collision_car" depart="195.7" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_103" type="scenario8_collision_car" depart="197.8" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_104" type="scenario8_collision_car" depart="198.4" departLane="0" departPos="0" departSpeed="13.89" color="cyan">
+        <route edges="1274037341#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_105" type="scenario8_collision_car" depart="202.1" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_106" type="scenario8_collision_car" depart="204.2" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_107" type="scenario8_collision_car" depart="206.2" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_108" type="scenario8_collision_car" depart="208.4" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_109" type="scenario8_collision_car" depart="211.2" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_110" type="scenario8_collision_car" depart="211.2" departLane="0" departPos="0" departSpeed="13.89" color="cyan">
+        <route edges="1274037341#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_111" type="scenario8_collision_car" depart="212.4" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_112" type="scenario8_collision_car" depart="212.6" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_113" type="scenario8_collision_car" depart="213.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_114" type="scenario8_collision_car" depart="213.8" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_115" type="scenario8_collision_car" depart="214.1" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_116" type="scenario8_collision_car" depart="216.4" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_117" type="scenario8_collision_car" depart="219.1" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_118" type="scenario8_collision_car" depart="221.5" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_119" type="scenario8_collision_car" depart="223.9" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_120" type="scenario8_collision_car" depart="226.1" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_121" type="scenario8_collision_car" depart="229.2" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_122" type="scenario8_collision_car" depart="231.6" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_123" type="scenario8_collision_car" depart="234.2" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_124" type="scenario8_collision_car" depart="235.6" departLane="0" departPos="0" departSpeed="13.89" color="magenta">
+        <route edges="1274037341#1 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_125" type="scenario8_collision_car" depart="236.2" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_126" type="scenario8_collision_car" depart="237.4" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_127" type="scenario8_collision_car" depart="238.5" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_128" type="scenario8_collision_car" depart="238.6" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_129" type="scenario8_collision_car" depart="238.8" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_130" type="scenario8_collision_car" depart="240.8" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_131" type="scenario8_collision_car" depart="243.1" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_132" type="scenario8_collision_car" depart="245.3" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_133" type="scenario8_collision_car" depart="247.0" departLane="0" departPos="0" departSpeed="13.89" color="yellow">
+        <route edges="409634167#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_134" type="scenario8_collision_car" depart="247.2" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_135" type="scenario8_collision_car" depart="249.2" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_136" type="scenario8_collision_car" depart="250.7" departLane="0" departPos="0" departSpeed="13.89" color="cyan">
+        <route edges="1274037341#1 409634167#3" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_137" type="scenario8_collision_car" depart="252.3" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_138" type="scenario8_collision_car" depart="252.9" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_139" type="scenario8_collision_car" depart="255.1" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_140" type="scenario8_collision_car" depart="256.3" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_141" type="scenario8_collision_car" depart="258.7" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_142" type="scenario8_collision_car" depart="260.7" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_143" type="scenario8_collision_car" depart="262.9" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_144" type="scenario8_collision_car" depart="265.7" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_145" type="scenario8_collision_car" depart="270.1" departLane="0" departPos="0" departSpeed="13.89" color="blue">
+        <route edges="1274037341#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_146" type="scenario8_collision_car" depart="270.6" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_147" type="scenario8_collision_car" depart="272.7" departLane="1" departPos="0" departSpeed="13.89" color="red">
+        <route edges="179750964#5 858712304#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_148" type="scenario8_collision_car" depart="276.6" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_149" type="scenario8_collision_car" depart="277.5" departLane="0" departPos="0" departSpeed="13.89" color="orange">
+        <route edges="179750964#5 179750980#0" />
+    </vehicle>
+    <vehicle id="targeted_vehicle_150" type="scenario8_collision_car" depart="286.2" departLane="1" departPos="0" departSpeed="13.89" color="green">
+        <route edges="409634167#1 179750980#0" />
+    </vehicle>
+</routes>

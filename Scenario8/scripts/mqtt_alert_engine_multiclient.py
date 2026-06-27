@@ -134,8 +134,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--gui-refresh-steps",
         type=int,
-        default=20,
-        help="When using sumo-gui, force viewport refresh during the first N simulation steps.",
+        default=0,
+        help="When using sumo-gui, force viewport refresh during the first N simulation steps. Default keeps the SUMO view file unchanged.",
     )
     parser.add_argument(
         "--traci-num-clients",
@@ -268,6 +268,34 @@ def write_sent_alert_log(writer: csv.DictWriter, handle: Any, alert: dict[str, A
         }
     )
     handle.flush()
+
+
+def format_published_alert(alert: dict[str, Any]) -> str:
+    risk_level = str(alert.get("risk_level", "UNKNOWN"))
+    episode_status = str(alert.get("episode_status", "DETECTION"))
+    sim_time = alert.get("simulation_time", "-")
+    vehicle_1 = str(alert.get("vehicle_1", ""))
+    vehicle_2 = str(alert.get("vehicle_2", ""))
+    arrival_diff = alert.get("arrival_time_difference_s", "-")
+    predicted_collision_time = alert.get("predicted_collision_time_s", "-")
+    recommendation = str(alert.get("recommendation", ""))
+    try:
+        sim_text = f"{float(sim_time):.1f}s"
+    except (TypeError, ValueError):
+        sim_text = str(sim_time)
+    try:
+        diff_text = f"{float(arrival_diff):.2f}s"
+    except (TypeError, ValueError):
+        diff_text = str(arrival_diff)
+    try:
+        collision_text = f"{float(predicted_collision_time):.1f}s"
+    except (TypeError, ValueError):
+        collision_text = str(predicted_collision_time)
+    return (
+        f"MQTT ALERT | {risk_level:<4} | {episode_status:<8} | sim={sim_text:<7} | "
+        f"pair={vehicle_1}->{vehicle_2} | arrival_diff={diff_text} | "
+        f"predicted_time={collision_text} | {recommendation}"
+    )
 
 
 def collect_vehicle_state(traci: Any, vehicle_id: str, sim_time: float, jx: float, jy: float) -> dict[str, Any]: #This function reads live vehicle data from SUMO.
@@ -466,7 +494,6 @@ def main() -> int: #This is where the real execution starts.
             "--num-clients",
             str(args.traci_num_clients),
             "--start",
-            "--disable-textures",
             "--window-size",
             "1360,820",
             "--window-pos",
@@ -499,7 +526,7 @@ def main() -> int: #This is where the real execution starts.
             raise RuntimeError(f"Junction '{args.junction_id}' was not found in the SUMO network.")
 
         jx, jy = traci.junction.getPosition(args.junction_id)
-        if using_sumo_gui:
+        if using_sumo_gui and args.gui_refresh_steps > 0:
             refresh_sumo_gui_view(traci, float(jx), float(jy), args.gui_view_radius_m)
 
         sim_start_time = float(traci.simulation.getTime())
@@ -606,6 +633,7 @@ def main() -> int: #This is where the real execution starts.
                 publish_json(client, f"{args.topic_prefix}/alerts", alert)
                 publish_json(client, f"{args.topic_prefix}/alerts/{risk_topic_suffix(alert['risk_level'])}", alert)
                 write_sent_alert_log(sent_log_writer, sent_log_handle, alert)
+                print(format_published_alert(alert))
 
             if args.alert_mode == "episode":
                 prune_episode_states(active_episode_states, sim_time, args.episode_reset_s)

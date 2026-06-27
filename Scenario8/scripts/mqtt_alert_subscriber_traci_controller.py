@@ -51,7 +51,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--traci-port", type=int, default=DEFAULT_TRACI_PORT)
     parser.add_argument("--traci-client-order", type=int, default=2)
     parser.add_argument("--junction-id", default=INTERSECTION_ID)
-    parser.add_argument("--alert-memory-s", type=float, default=12.0)
+    parser.add_argument(
+        "--control-mode",
+        choices=["visual", "protect"],
+        default="protect",
+        help=(
+            "visual shows MQTT alert labels in SUMO without changing vehicle speeds; "
+            "protect also applies the stop/release collision-avoidance gate."
+        ),
+    )
+    parser.add_argument("--alert-memory-s", type=float, default=60.0)
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--protection-log", type=Path, default=DEFAULT_PROTECTION_LOG_PATH)
     parser.add_argument("--received-log", type=Path, default=DEFAULT_RECEIVED_LOG_PATH)
@@ -99,6 +108,15 @@ def calculate_latency_ms(payload: dict[str, Any]) -> float | None:
 def normalize_pair(vehicle_1: str, vehicle_2: str) -> tuple[str, str]:
     pair = sorted([str(vehicle_1), str(vehicle_2)])
     return pair[0], pair[1]
+
+
+def gate_has_pending_work(gate_state: dict[str, Any]) -> bool:
+    return bool(
+        gate_state.get("current_priority_vehicle_id")
+        or gate_state.get("controlled")
+        or gate_state.get("reservation_queue")
+        or gate_state.get("conflict_zone_vehicle_ids")
+    )
 
 
 def connect_traci_with_retry(traci: Any, host: str, port: int, timeout_s: float = 90.0) -> Any:
@@ -288,11 +306,13 @@ def main() -> int:
                 f"pair={vehicle_1}->{vehicle_2}"
             )
 
-        if risk_level == "HIGH" and vehicle_1 and vehicle_2:
+        if args.control_mode == "protect" and risk_level == "HIGH" and vehicle_1 and vehicle_2:
             with alert_lock:
                 payload["_controller_received_perf_time"] = time.perf_counter()
                 high_alerts_by_pair[normalize_pair(vehicle_1, vehicle_2)] = payload
             controller_action = "QUEUED_FOR_TRACI_CONTROL"
+        elif risk_level in {"HIGH", "LOW"} and vehicle_1 and vehicle_2:
+            controller_action = "VISUAL_ALERT_ONLY"
 
         received_writer.writerow(
             {
@@ -349,15 +369,25 @@ def main() -> int:
         junction_x, junction_y = traci.junction.getPosition(args.junction_id)
         protection.configure_protected_vehicle_types(traci)
 
-        print(
-            "Scenario8 subscriber-controller connected to TraCI. "
-            "It will control vehicles only after receiving HIGH MQTT alerts."
-        )
+        if args.control_mode == "protect":
+            print(
+                "Scenario8 subscriber-controller connected to TraCI in protect mode. "
+                "It will control vehicles only after receiving HIGH MQTT alerts."
+            )
+        else:
+            print(
+                "Scenario8 subscriber-controller connected to TraCI in visual mode. "
+                "It will show LOW/HIGH MQTT alert labels without controlling vehicles."
+            )
 
         while traci.simulation.getMinExpectedNumber() > 0:
             traci.simulationStep()
             sim_time = float(traci.simulation.getTime())
             active_vehicle_ids = set(map(str, traci.vehicle.getIDList()))
+            if args.control_mode == "visual":
+                for vehicle_id in active_vehicle_ids:
+                    if vehicle_id.startswith("targeted"):
+                        protection.apply_protected_vehicle_parameters(traci, vehicle_id)
 
             with alert_lock:
                 high_alerts: list[dict[str, Any]] = []
@@ -386,7 +416,7 @@ def main() -> int:
                 )
             expire_alert_visuals(traci, visual_state, active_vehicle_ids, sim_time)
 
-            if high_alerts:
+            if args.control_mode == "protect" and (high_alerts or gate_has_pending_work(gate_state)):
                 new_protections, new_releases = protection.maintain_intersection_gate_controls(
                     traci,
                     protection_writer,
@@ -401,7 +431,7 @@ def main() -> int:
                 )
                 protections_applied += new_protections
                 releases += new_releases
-            else:
+            elif args.control_mode == "protect":
                 for vehicle_id in list(gate_state.get("controlled", {})):
                     if vehicle_id in active_vehicle_ids:
                         protection.release_gate_vehicle(traci, gate_state, vehicle_id, sim_time)
@@ -410,7 +440,8 @@ def main() -> int:
             if step % 20 == 0:
                 print(
                     f"Subscriber-controller status | sim={sim_time:.1f} | active={len(active_vehicle_ids)} | "
-                    f"high_alert_pairs={len(high_alerts)} | protections={protections_applied} | releases={releases}"
+                    f"mode={args.control_mode} | high_alert_pairs={len(high_alerts)} | "
+                    f"protections={protections_applied} | releases={releases}"
                 )
 
             step += 1
