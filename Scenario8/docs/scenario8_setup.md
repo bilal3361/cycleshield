@@ -80,22 +80,22 @@ information is also saved in the CSV logs.
 
 Start the MQTT broker first if it is not already running:
 
-```bash
-cd /Users/admin/V2X_Project2/Scenario8
+```powershell
+cd D:\Rana\cycleshield\Scenario8
 docker compose -f docker-compose.mqtt.yml up -d
 ```
 
 Run the subscriber-controlled protected experiment:
 
-```bash
-cd /Users/admin/V2X_Project2/Scenario8
-./run_scenario8_mqtt_subscriber_control.sh
+```powershell
+cd D:\Rana\cycleshield\Scenario8
+bash .\run_scenario8_mqtt_subscriber_control.sh
 ```
 
 Run the warning-only baseline:
 
-```bash
-./run_scenario8_warning_only.sh
+```powershell
+bash .\run_scenario8_warning_only.sh
 ```
 
 ## Notes

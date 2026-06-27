@@ -1,0 +1,6 @@
+# Runtime data/log output
+*.csv
+
+# Python bytecode/cache files
+*.pyc
+__pycache__/
