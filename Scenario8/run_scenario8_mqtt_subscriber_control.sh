@@ -28,7 +28,7 @@ Options:
   --mode gui|headless     Use sumo-gui or headless sumo. Default: gui
   --control-mode visual|protect
                           visual shows LOW/HIGH alerts without stopping cars.
-                          protect applies the collision-avoidance stop/release gate.
+                          protect applies adaptive signal-style collision control.
                           Default: visual
   --vehicle-count N       Number of vehicles for --scenario realtime. Default: 150
   --duration SECONDS      Simulation spread for --scenario realtime. Default: auto

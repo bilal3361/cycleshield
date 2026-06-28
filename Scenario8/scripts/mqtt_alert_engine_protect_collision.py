@@ -29,6 +29,10 @@ WAIT_SPEED_MPS = 0.3
 SLOWDOWN_DURATION_S = 2.0
 SPEED_COMMAND_REFRESH_S = 0.2
 SAFE_TIME_GAP_S = 2.0
+PHASE_MIN_GREEN_S = 6.0
+PHASE_MAX_GREEN_S = 16.0
+PHASE_CLEARANCE_S = 1.2
+PHASE_MAX_WAIT_S = 22.0
 
 APPROACH_ZONE_RADIUS_M = 150.0
 RESERVATION_ENTRY_DISTANCE_M = 45.0
@@ -720,7 +724,102 @@ def maybe_log_reservation_action(
     return True
 
 
-def maintain_intersection_gate_controls(
+def vehicle_approach_phase_id(traci: Any, gate_state: dict[str, Any], vehicle_id: str) -> str:
+    remembered_phases: dict[str, str] = gate_state.setdefault("vehicle_phase_ids", {})
+    try:
+        road_id = str(traci.vehicle.getRoadID(vehicle_id))
+    except Exception:
+        road_id = ""
+    if road_id and not lane_is_target_internal(road_id) and not road_id.startswith(":"):
+        remembered_phases[vehicle_id] = road_id
+        return road_id
+
+    try:
+        lane_id = str(traci.vehicle.getLaneID(vehicle_id))
+    except Exception:
+        lane_id = ""
+    if lane_id and not lane_is_target_internal(lane_id) and not lane_id.startswith(":"):
+        phase_id = lane_id.rsplit("_", 1)[0]
+        remembered_phases[vehicle_id] = phase_id
+        return phase_id
+
+    remembered_phase = remembered_phases.get(vehicle_id, "")
+    if remembered_phase:
+        return remembered_phase
+
+    try:
+        route = list(map(str, traci.vehicle.getRoute(vehicle_id)))
+        route_index = int(traci.vehicle.getRouteIndex(vehicle_id))
+    except Exception:
+        route = []
+        route_index = -1
+    if route:
+        phase_id = route[max(0, min(route_index - 1 if road_id.startswith(":") else route_index, len(route) - 1))]
+        remembered_phases[vehicle_id] = phase_id
+        return phase_id
+
+    return "unknown_approach"
+
+
+def choose_adaptive_phase(
+    phase_queues: dict[str, list[str]],
+    phase_first_seen_s: dict[str, float],
+    arrival_times: dict[str, float],
+    preferred_phase_id: str = "",
+) -> str:
+    if preferred_phase_id and phase_queues.get(preferred_phase_id):
+        return preferred_phase_id
+    if not phase_queues:
+        return ""
+
+    def phase_sort_key(phase_id: str) -> tuple[float, float, str]:
+        vehicles = phase_queues.get(phase_id, [])
+        earliest_arrival = min((arrival_times.get(vehicle_id, 999999.0) for vehicle_id in vehicles), default=999999.0)
+        return (
+            float(phase_first_seen_s.get(phase_id, 999999.0)),
+            earliest_arrival,
+            phase_id,
+        )
+
+    return sorted(phase_queues, key=phase_sort_key)[0]
+
+
+def start_phase_clearance(
+    writer: csv.DictWriter,
+    handle: Any,
+    gate_state: dict[str, Any],
+    sim_time: float,
+    active_phase_id: str,
+    reason: str,
+    reservation_queue: list[str],
+    zone_vehicle_ids: list[str],
+) -> None:
+    if not active_phase_id:
+        return
+    gate_state["active_phase_id"] = ""
+    gate_state["all_red_until_s"] = float(sim_time) + PHASE_CLEARANCE_S
+    gate_state["current_priority_vehicle_id"] = ""
+    gate_state["priority_progress"] = {}
+    gate_state["phase_release_logged_ids"] = set()
+    write_protection_log(
+        writer,
+        handle,
+        sim_time,
+        "PHASE_CLEARANCE",
+        priority_vehicle_id="",
+        yielding_vehicle_id="",
+        reservation_queue=reservation_queue,
+        conflict_group_vehicle_ids=reservation_queue,
+        conflict_zone_vehicle_ids=zone_vehicle_ids,
+        release_reason=reason,
+        note=(
+            f"Adaptive signal phase {active_phase_id} ended; "
+            f"holding all approaches for {PHASE_CLEARANCE_S:.1f}s clearance."
+        ),
+    )
+
+
+def maintain_adaptive_intersection_gate_controls(
     traci: Any,
     writer: csv.DictWriter,
     handle: Any,
@@ -736,7 +835,10 @@ def maintain_intersection_gate_controls(
     release_count = 0
     gate_state.setdefault("controlled", {})
     gate_state.setdefault("release_cooldowns", {})
-    gate_state.setdefault("priority_progress", {})
+    gate_state.setdefault("phase_first_seen_s", {})
+    gate_state.setdefault("vehicle_phase_ids", {})
+    gate_state.setdefault("protected_vehicle_ids", set())
+    gate_state.setdefault("next_phase_preference", "")
 
     controlled_vehicle_ids = set(gate_state.get("controlled", {}))
     for vehicle_id in active_vehicle_ids:
@@ -764,6 +866,7 @@ def maintain_intersection_gate_controls(
             distance_m = float(state.get("distance_to_junction_center_m", 999999.0))
         except (TypeError, ValueError):
             continue
+
         entry_distance_m = distance_to_junction_entry(traci, vehicle_id)
         is_alert_vehicle = vehicle_id in alert_arrivals
         is_controlled_vehicle = vehicle_id in controlled_vehicle_ids
@@ -786,89 +889,12 @@ def maintain_intersection_gate_controls(
             continue
         if distance_m > APPROACH_ZONE_RADIUS_M and not (is_alert_vehicle or is_controlled_vehicle):
             continue
+
         candidate_vehicle_ids.append(vehicle_id)
         arrival_times[vehicle_id] = alert_arrivals.get(
             vehicle_id,
             estimate_live_arrival_time(vehicle_id, current_states, sim_time),
         )
-
-    candidate_set = set(candidate_vehicle_ids)
-    preferred_priority_vehicle_id = ""
-    current_priority_vehicle_id = str(gate_state.get("current_priority_vehicle_id", ""))
-    if current_priority_vehicle_id and current_priority_vehicle_id not in active_vehicle_ids:
-        current_priority_vehicle_id = ""
-        gate_state["current_priority_vehicle_id"] = ""
-        gate_state["priority_progress"] = {}
-
-    if current_priority_vehicle_id:
-        blocking_leader_id = candidate_leader_id(traci, current_priority_vehicle_id, candidate_set)
-        if blocking_leader_id:
-            write_protection_log(
-                writer,
-                handle,
-                sim_time,
-                "REASSIGN_BLOCKED_PRIORITY",
-                priority_vehicle_id=blocking_leader_id,
-                yielding_vehicle_id=current_priority_vehicle_id,
-                reservation_queue=candidate_vehicle_ids,
-                conflict_group_vehicle_ids=candidate_vehicle_ids,
-                predicted_arrival_time_s=arrival_times.get(blocking_leader_id),
-                conflict_zone_vehicle_ids=zone_vehicle_ids,
-                release_reason="priority_vehicle_blocked_by_queue_leader",
-                note=(
-                    f"Priority vehicle {current_priority_vehicle_id} is behind "
-                    f"{blocking_leader_id}; front-of-queue vehicle is released first."
-                ),
-                alert=alert_by_vehicle.get(blocking_leader_id),
-            )
-            preferred_priority_vehicle_id = blocking_leader_id
-            current_priority_vehicle_id = ""
-            gate_state["current_priority_vehicle_id"] = ""
-            gate_state["priority_progress"] = {}
-
-    if current_priority_vehicle_id:
-        priority_distance_m = get_distance_to_junction(traci, current_priority_vehicle_id, junction_x, junction_y)
-        priority_progress: dict[str, Any] = dict(gate_state.get("priority_progress", {}))
-        if not priority_progress:
-            priority_progress = {
-                "min_distance_m": priority_distance_m,
-                "entered_stop_zone": bool(priority_distance_m is not None and priority_distance_m <= STOP_ZONE_RADIUS_M),
-                "entered_conflict_zone": bool(priority_distance_m is not None and priority_distance_m <= CONFLICT_ZONE_RADIUS_M),
-                "entered_clear_zone": bool(priority_distance_m is not None and priority_distance_m <= CLEAR_ZONE_RADIUS_M),
-            }
-        update_vehicle_progress_state(priority_progress, priority_distance_m)
-        gate_state["priority_progress"] = priority_progress
-
-        priority_has_cleared = priority_vehicle_has_safely_cleared(
-            traci,
-            current_priority_vehicle_id,
-            active_vehicle_ids,
-            priority_progress,
-            junction_x,
-            junction_y,
-        )
-        if priority_has_cleared:
-            release_gate_vehicle(traci, gate_state, current_priority_vehicle_id, sim_time)
-            write_protection_log(
-                writer,
-                handle,
-                sim_time,
-                "RELEASE_NEXT_VEHICLE",
-                priority_vehicle_id=current_priority_vehicle_id,
-                yielding_vehicle_id=current_priority_vehicle_id,
-                reservation_queue=[current_priority_vehicle_id],
-                conflict_group_vehicle_ids=candidate_vehicle_ids,
-                predicted_arrival_time_s=arrival_times.get(current_priority_vehicle_id),
-                conflict_zone_vehicle_ids=zone_vehicle_ids,
-                release_reason="priority_cleared_clear_zone",
-                note="Priority vehicle cleared the target conflict/clear zone.",
-                alert=alert_by_vehicle.get(current_priority_vehicle_id),
-            )
-            release_count += 1
-            current_priority_vehicle_id = ""
-            gate_state["current_priority_vehicle_id"] = ""
-            gate_state["priority_progress"] = {}
-            gate_state["last_release_time_s"] = float(sim_time)
 
     sorted_candidates = sorted(
         set(candidate_vehicle_ids),
@@ -877,141 +903,286 @@ def maintain_intersection_gate_controls(
             vehicle_id,
         ),
     )
-    front_candidates = front_of_queue_candidates(traci, sorted_candidates)
 
-    release_gap_elapsed = (
-        float(sim_time) - float(gate_state.get("last_release_time_s", -999999.0))
-    ) >= SAFE_TIME_GAP_S
-    can_assign_next_priority = bool(zone_vehicle_ids) or release_gap_elapsed
+    if not sorted_candidates and not zone_vehicle_ids:
+        for vehicle_id in list(gate_state.get("controlled", {})):
+            if vehicle_id in active_vehicle_ids:
+                release_gate_vehicle(traci, gate_state, vehicle_id, sim_time)
+                release_count += 1
+        gate_state["active_phase_id"] = ""
+        gate_state["current_priority_vehicle_id"] = ""
+        gate_state["reservation_queue"] = []
+        gate_state["conflict_zone_vehicle_ids"] = []
+        gate_state["phase_first_seen_s"] = {}
+        gate_state["phase_release_logged_ids"] = set()
+        gate_state["next_phase_preference"] = ""
+        return newly_controlled_count, release_count
 
-    if not current_priority_vehicle_id and can_assign_next_priority:
-        if zone_vehicle_ids:
-            current_priority_vehicle_id = zone_vehicle_ids[0]
-        elif preferred_priority_vehicle_id and preferred_priority_vehicle_id in sorted_candidates:
-            current_priority_vehicle_id = preferred_priority_vehicle_id
-        elif front_candidates:
-            current_priority_vehicle_id = front_candidates[0]
-        elif sorted_candidates:
-            current_priority_vehicle_id = sorted_candidates[0]
+    phase_by_vehicle: dict[str, str] = {}
+    phase_queues: dict[str, list[str]] = {}
+    for vehicle_id in sorted_candidates:
+        phase_id = vehicle_approach_phase_id(traci, gate_state, vehicle_id)
+        phase_by_vehicle[vehicle_id] = phase_id
+        phase_queues.setdefault(phase_id, []).append(vehicle_id)
 
-        if current_priority_vehicle_id:
-            gate_state["current_priority_vehicle_id"] = current_priority_vehicle_id
-            priority_distance_m = get_distance_to_junction(traci, current_priority_vehicle_id, junction_x, junction_y)
-            gate_state["priority_progress"] = {
-                "min_distance_m": priority_distance_m,
-                "entered_stop_zone": bool(priority_distance_m is not None and priority_distance_m <= STOP_ZONE_RADIUS_M),
-                "entered_conflict_zone": bool(priority_distance_m is not None and priority_distance_m <= CONFLICT_ZONE_RADIUS_M),
-                "entered_clear_zone": bool(priority_distance_m is not None and priority_distance_m <= CLEAR_ZONE_RADIUS_M),
-            }
-            gate_state.setdefault("protected_vehicle_ids", set()).add(current_priority_vehicle_id)
-            release_gate_vehicle(traci, gate_state, current_priority_vehicle_id, sim_time)
+    zone_phase_ids = {
+        vehicle_approach_phase_id(traci, gate_state, vehicle_id)
+        for vehicle_id in zone_vehicle_ids
+        if vehicle_id in active_vehicle_ids
+    }
+    phase_first_seen_s: dict[str, float] = gate_state.setdefault("phase_first_seen_s", {})
+    for phase_id in phase_queues:
+        phase_first_seen_s.setdefault(phase_id, float(sim_time))
+    for phase_id in list(phase_first_seen_s):
+        if phase_id not in phase_queues and phase_id not in zone_phase_ids:
+            del phase_first_seen_s[phase_id]
+
+    active_phase_id = str(gate_state.get("active_phase_id", ""))
+    phase_start_time_s = float(gate_state.get("phase_start_time_s", sim_time))
+    all_red_until_s = float(gate_state.get("all_red_until_s", -999999.0))
+    in_clearance = float(sim_time) < all_red_until_s
+
+    if active_phase_id and active_phase_id not in phase_queues and active_phase_id not in zone_phase_ids:
+        if (float(sim_time) - phase_start_time_s) >= PHASE_MIN_GREEN_S:
+            phase_first_seen_s.pop(active_phase_id, None)
+            if gate_state.get("next_phase_preference") == active_phase_id:
+                gate_state["next_phase_preference"] = ""
+            start_phase_clearance(
+                writer,
+                handle,
+                gate_state,
+                sim_time,
+                active_phase_id,
+                "phase_queue_empty",
+                sorted_candidates,
+                zone_vehicle_ids,
+            )
+            active_phase_id = ""
+            in_clearance = True
+
+    if active_phase_id and not in_clearance:
+        green_elapsed_s = float(sim_time) - phase_start_time_s
+        other_phase_ids = [phase_id for phase_id in phase_queues if phase_id != active_phase_id]
+        oldest_waiting_phase = ""
+        oldest_wait_s = 0.0
+        for phase_id in other_phase_ids:
+            wait_s = float(sim_time) - float(phase_first_seen_s.get(phase_id, sim_time))
+            if wait_s > oldest_wait_s:
+                oldest_wait_s = wait_s
+                oldest_waiting_phase = phase_id
+
+        active_zone_present = active_phase_id in zone_phase_ids
+        should_switch_for_max_green = bool(other_phase_ids and green_elapsed_s >= PHASE_MAX_GREEN_S)
+        should_switch_for_fairness = bool(
+            oldest_waiting_phase
+            and oldest_wait_s >= PHASE_MAX_WAIT_S
+            and green_elapsed_s >= PHASE_MIN_GREEN_S
+        )
+        if (should_switch_for_max_green or should_switch_for_fairness) and not active_zone_present:
+            next_phase_id = oldest_waiting_phase
+            if not next_phase_id:
+                other_phase_queues = {
+                    phase_id: vehicles
+                    for phase_id, vehicles in phase_queues.items()
+                    if phase_id != active_phase_id
+                }
+                next_phase_id = choose_adaptive_phase(
+                    other_phase_queues,
+                    phase_first_seen_s,
+                    arrival_times,
+                )
+            if next_phase_id:
+                gate_state["next_phase_preference"] = next_phase_id
+            phase_first_seen_s[active_phase_id] = float(sim_time)
+            start_phase_clearance(
+                writer,
+                handle,
+                gate_state,
+                sim_time,
+                active_phase_id,
+                "max_green_elapsed" if should_switch_for_max_green else "max_wait_elapsed",
+                sorted_candidates,
+                zone_vehicle_ids,
+            )
+            active_phase_id = ""
+            in_clearance = True
+
+    if not active_phase_id and not in_clearance:
+        next_phase_preference = str(gate_state.get("next_phase_preference", ""))
+        if next_phase_preference and next_phase_preference in phase_queues:
+            preferred_phase_id = next_phase_preference
+        else:
+            preferred_phase_id = sorted(zone_phase_ids)[0] if zone_phase_ids else ""
+        active_phase_id = choose_adaptive_phase(
+            phase_queues,
+            phase_first_seen_s,
+            arrival_times,
+            preferred_phase_id=preferred_phase_id,
+        )
+        if active_phase_id:
+            gate_state["active_phase_id"] = active_phase_id
+            gate_state["phase_start_time_s"] = float(sim_time)
+            gate_state["all_red_until_s"] = -999999.0
+            gate_state["phase_release_logged_ids"] = set()
+            gate_state["next_phase_preference"] = ""
+            phase_first_seen_s[active_phase_id] = float(sim_time)
             write_protection_log(
                 writer,
                 handle,
                 sim_time,
-                "RELEASE_NEXT_VEHICLE",
-                priority_vehicle_id=current_priority_vehicle_id,
-                yielding_vehicle_id=current_priority_vehicle_id,
+                "PHASE_GREEN_ASSIGNED",
+                priority_vehicle_id=phase_queues.get(active_phase_id, [""])[0],
+                yielding_vehicle_id="",
                 reservation_queue=sorted_candidates,
                 conflict_group_vehicle_ids=sorted_candidates,
-                predicted_arrival_time_s=arrival_times.get(current_priority_vehicle_id),
+                predicted_arrival_time_s=arrival_times.get(phase_queues.get(active_phase_id, [""])[0]),
                 conflict_zone_vehicle_ids=zone_vehicle_ids,
-                release_reason="fcfs_priority_assigned",
-                note="Released priority vehicle matching earliest expected arrival time.",
-                alert=alert_by_vehicle.get(current_priority_vehicle_id),
+                release_reason="adaptive_phase_green",
+                note=(
+                    f"Adaptive protection opened green phase for approach {active_phase_id}. "
+                    f"Min green={PHASE_MIN_GREEN_S:.1f}s, max green={PHASE_MAX_GREEN_S:.1f}s."
+                ),
+                alert=alert_by_vehicle.get(phase_queues.get(active_phase_id, [""])[0]),
             )
-            release_count += 1
+    elif active_phase_id:
+        gate_state["active_phase_id"] = active_phase_id
 
-    reservation_queue = list(sorted_candidates)
-    gate_state["reservation_queue"] = reservation_queue
+    green_open = bool(active_phase_id and not in_clearance)
+    allowed_vehicle_ids = [
+        vehicle_id
+        for vehicle_id in sorted_candidates
+        if green_open and phase_by_vehicle.get(vehicle_id) == active_phase_id
+    ]
+    gate_state["current_priority_vehicle_id"] = allowed_vehicle_ids[0] if allowed_vehicle_ids else ""
+    gate_state["reservation_queue"] = list(sorted_candidates)
     gate_state["conflict_zone_vehicle_ids"] = zone_vehicle_ids
-    queue_gate_active = bool(
-        high_alerts
-        or current_priority_vehicle_id
-        or gate_state.get("controlled")
-        or reservation_queue
-        or zone_vehicle_ids
-    )
 
     for vehicle_id in list(gate_state.get("controlled", {})):
         if vehicle_id not in active_vehicle_ids or vehicle_id not in sorted_candidates:
             release_gate_vehicle(traci, gate_state, vehicle_id, sim_time)
+            release_count += 1
 
     for vehicle_id in sorted_candidates:
-        if vehicle_id == current_priority_vehicle_id:
-            continue
-
-        state = ensure_gate_state(gate_state, vehicle_id, sim_time)
         distance_m = get_distance_to_junction(traci, vehicle_id, junction_x, junction_y)
         if distance_m is None:
             continue
 
-        try:
-            leader = traci.vehicle.getLeader(vehicle_id, 35.0)
-        except Exception:
-            leader = None
+        if vehicle_id in zone_vehicle_ids:
+            state = gate_state.get("controlled", {}).get(vehicle_id)
+            if state is not None:
+                maybe_log_reservation_action(
+                    writer,
+                    handle,
+                    sim_time,
+                    state,
+                    "SKIP_ALREADY_IN_CONFLICT_ZONE",
+                    allowed_vehicle_ids[0] if allowed_vehicle_ids else "",
+                    vehicle_id,
+                    sorted_candidates,
+                    sorted_candidates,
+                    arrival_times.get(vehicle_id),
+                    zone_vehicle_ids,
+                    None,
+                    "already_inside_conflict_zone",
+                    "Vehicle is already inside the protected junction area; it is allowed to clear.",
+                    alert=alert_by_vehicle.get(vehicle_id),
+                )
+            continue
 
-        if (
-            not queue_gate_active
-            and
-            not zone_vehicle_ids
-            and vehicle_id not in alert_by_vehicle
-            and vehicle_id not in gate_state.get("controlled", {})
-        ):
+        if vehicle_id in allowed_vehicle_ids:
+            was_controlled = vehicle_id in gate_state.get("controlled", {})
             release_gate_vehicle(traci, gate_state, vehicle_id, sim_time)
+            if was_controlled:
+                release_count += 1
+            gate_state.setdefault("protected_vehicle_ids", set()).add(vehicle_id)
+            logged_ids = gate_state.setdefault("phase_release_logged_ids", set())
+            if was_controlled or vehicle_id not in logged_ids:
+                write_protection_log(
+                    writer,
+                    handle,
+                    sim_time,
+                    "PHASE_GREEN_RELEASE",
+                    priority_vehicle_id=allowed_vehicle_ids[0],
+                    yielding_vehicle_id=vehicle_id,
+                    reservation_queue=sorted_candidates,
+                    conflict_group_vehicle_ids=phase_queues.get(active_phase_id, []),
+                    predicted_arrival_time_s=arrival_times.get(vehicle_id),
+                    conflict_zone_vehicle_ids=zone_vehicle_ids,
+                    release_reason="same_approach_green",
+                    note=(
+                        f"Vehicle released under adaptive green phase {active_phase_id}; "
+                        "same approach vehicles may pass like a realistic signal queue."
+                    ),
+                    alert=alert_by_vehicle.get(vehicle_id),
+                )
+                logged_ids.add(vehicle_id)
             continue
 
-        if (
-            not queue_gate_active
-            and
-            leader
-            and vehicle_id not in gate_state.get("controlled", {})
-            and vehicle_id not in alert_by_vehicle
-            and state.get("target_speed_mps") != 0.0
-        ):
-            if state.get("target_speed_mps") is not None:
-                release_manual_speed_control(traci, vehicle_id, state)
-                state["target_speed_mps"] = None
-            continue
-
+        state = ensure_gate_state(gate_state, vehicle_id, sim_time)
         newly_controlled = state.get("first_logged") is None
         if newly_controlled:
             state["first_logged"] = True
             newly_controlled_count += 1
+        gate_state.setdefault("protected_vehicle_ids", set()).add(vehicle_id)
 
-        if vehicle_id in zone_vehicle_ids:
-            action = "SKIP_ALREADY_IN_CONFLICT_ZONE"
-            target_speed_mps = None
-            release_reason = "already_inside_conflict_zone"
-            note = "Vehicle already crossed into boundary; priority cleared to maintain throughput safely."
+        target_speed_mps, stop_note = apply_gate_wait(traci, gate_state, vehicle_id, sim_time, distance_m)
+        if in_clearance:
+            action = "PHASE_CLEARANCE_WAIT"
+            release_reason = "all_red_clearance"
+        elif stop_note.startswith("normal_approach"):
+            action = "QUEUE_MONITOR"
+            release_reason = "waiting_for_green_phase"
         else:
-            target_speed_mps, stop_note = apply_gate_wait(traci, gate_state, vehicle_id, sim_time, distance_m)
-            if stop_note.startswith("normal_approach"):
-                action = "QUEUE_MONITOR"
-            else:
-                action = "SLOW_NEAR_ENTRY" if target_speed_mps not in (None, 0.0) else "WAIT_AT_STOP_ZONE"
-            release_reason = "conflict_zone_occupied" if zone_vehicle_ids else "reserved_priority_approaching"
-            note = f"Vehicle held at stop line for target-junction reservation: {stop_note}."
-
+            action = "SLOW_NEAR_ENTRY" if target_speed_mps not in (None, 0.0) else "WAIT_AT_STOP_ZONE"
+            release_reason = "waiting_for_green_phase"
         maybe_log_reservation_action(
             writer,
             handle,
             sim_time,
             state,
             action,
-            current_priority_vehicle_id,
+            allowed_vehicle_ids[0] if allowed_vehicle_ids else "",
             vehicle_id,
-            reservation_queue,
+            sorted_candidates,
             sorted_candidates,
             arrival_times.get(vehicle_id),
             zone_vehicle_ids,
             target_speed_mps,
             release_reason,
-            note,
+            (
+                f"Vehicle held for adaptive phase control. active_phase={active_phase_id or 'CLEARANCE'}; "
+                f"vehicle_phase={phase_by_vehicle.get(vehicle_id, '')}; {stop_note}."
+            ),
             alert=alert_by_vehicle.get(vehicle_id),
         )
 
     return newly_controlled_count, release_count
+
+
+def maintain_intersection_gate_controls(
+    traci: Any,
+    writer: csv.DictWriter,
+    handle: Any,
+    gate_state: dict[str, Any],
+    active_vehicle_ids: set[str],
+    current_states: dict[str, dict[str, Any]],
+    sim_time: float,
+    junction_x: float,
+    junction_y: float,
+    high_alerts: list[dict[str, Any]],
+) -> tuple[int, int]:
+    return maintain_adaptive_intersection_gate_controls(
+        traci,
+        writer,
+        handle,
+        gate_state,
+        active_vehicle_ids,
+        current_states,
+        sim_time,
+        junction_x,
+        junction_y,
+        high_alerts,
+    )
 
 
 def update_alert_history(

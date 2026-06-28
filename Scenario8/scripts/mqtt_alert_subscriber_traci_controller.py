@@ -57,7 +57,7 @@ def parse_args() -> argparse.Namespace:
         default="protect",
         help=(
             "visual shows MQTT alert labels in SUMO without changing vehicle speeds; "
-            "protect also applies the stop/release collision-avoidance gate."
+            "protect also applies adaptive signal-style collision-avoidance control."
         ),
     )
     parser.add_argument("--alert-memory-s", type=float, default=60.0)
@@ -113,6 +113,7 @@ def normalize_pair(vehicle_1: str, vehicle_2: str) -> tuple[str, str]:
 def gate_has_pending_work(gate_state: dict[str, Any]) -> bool:
     return bool(
         gate_state.get("current_priority_vehicle_id")
+        or gate_state.get("active_phase_id")
         or gate_state.get("controlled")
         or gate_state.get("reservation_queue")
         or gate_state.get("conflict_zone_vehicle_ids")

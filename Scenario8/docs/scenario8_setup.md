@@ -83,9 +83,11 @@ Use `protect` mode only for the stricter collision-avoidance experiment.
 ```text
 protect mode:
 - HIGH alerts can trigger TraCI speed control;
-- vehicles may queue near the intersection;
-- useful for showing collision-avoidance logic;
-- less realistic visually because cars may be intentionally held.
+- vehicles are grouped by approach, like traffic-signal phases;
+- one approach receives a short green phase while conflicting approaches wait;
+- several vehicles from the same approach can move through as a realistic queue;
+- a short all-red clearance is inserted before switching approaches;
+- useful for showing collision-avoidance logic under heavy traffic.
 ```
 
 ## Main Files
@@ -282,22 +284,39 @@ macOS/Linux:
 ## Protection Experiment
 
 This is not the recommended professor visual demo. Use it only if you need to
-show the strict stop/release collision-avoidance controller.
+show the stricter adaptive collision-avoidance controller.
 
 Windows:
 
 ```powershell
-.\run_scenario8_mqtt_subscriber_control.ps1 -Scenario 150 -Mode gui -ControlMode protect
+.\run_scenario8_mqtt_subscriber_control.ps1 -Scenario realtime -VehicleCount 150 -Mode gui -ControlMode protect
 ```
 
 macOS/Linux:
 
 ```bash
-./run_scenario8_mqtt_subscriber_control.sh --scenario 150 --mode gui --control-mode protect
+./run_scenario8_mqtt_subscriber_control.sh --scenario realtime --vehicle-count 150 --mode gui --control-mode protect
 ```
 
-In protection mode, cars may stop and queue because the controller allows one
-priority vehicle through the conflict zone at a time.
+In protection mode, cars may stop and queue because the subscriber-controller
+uses HIGH MQTT alerts to control the intersection through TraCI. The current
+logic is adaptive signal-style protection:
+
+```text
+- The predictive model detects HIGH risk pairs.
+- The subscriber-controller watches the affected vehicles in real time.
+- Vehicles approaching the target junction are grouped by their incoming road.
+- The selected approach receives a green phase.
+- Vehicles from that same approach may pass in sequence using SUMO car-following.
+- Conflicting approaches are slowed or held near the stop line.
+- After the green phase, the controller uses a short all-red clearance.
+- If another approach waits too long, the next green phase rotates to it.
+```
+
+This avoids the earlier problem where one priority vehicle could be released
+while a queue behind it or beside it was not handled consistently. It is still
+not meant to behave like a full city traffic-light optimizer; it is the
+project's V2X protection experiment driven by the trained model and MQTT alerts.
 
 ## Logs
 
@@ -316,7 +335,10 @@ data/scenario8_realtime_conflict_groups.csv
 received by the MQTT subscriber-controller, including latency.
 
 `scenario8_subscriber_controller_protection_log.csv` is mainly useful for
-`protect` mode. In `visual` mode, protection counts should stay at zero.
+`protect` mode. It contains actions such as `PHASE_GREEN_ASSIGNED`,
+`PHASE_GREEN_RELEASE`, `PHASE_CLEARANCE`, `PHASE_CLEARANCE_WAIT`,
+`SLOW_NEAR_ENTRY`, and `WAIT_AT_STOP_ZONE`. In `visual` mode, protection counts
+should stay at zero.
 
 ## Troubleshooting
 
@@ -364,4 +386,4 @@ the trained LSTM model predicts future trajectories, the engine estimates
 time/arrival risk, and MQTT delivers warning messages to a subscriber that
 shows LOW/HIGH alerts in the simulation. The realtime visual mode is intended
 for understandable demonstration. The protection mode is a separate technical
-experiment for stop/release collision avoidance.
+experiment for adaptive signal-style collision avoidance.
